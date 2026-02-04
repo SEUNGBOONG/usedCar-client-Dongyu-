@@ -2,8 +2,7 @@ name: Deploy to EC2 with Docker
 
 on:
   push:
-    branches: [ "main" ] # main 브랜치에 코드가 푸시될 때 실행
-
+    branches: [ "main" ]
 
 jobs:
   deploy:
@@ -18,26 +17,31 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # GitHub Secrets에 넣은 application.yml 내용을 파일로 생성
-      - name: Create application.yml
-        run: |
-          mkdir -p ./src/main/resources
-          echo "${{ secrets.APPLICATION_PROPERTIES }}" > ./src/main/resources/application.yml
+      # 1. 파일이 어디 있는지 확인 (디버깅용 - 에러 나면 로그 확인용)
+      - name: List files
+        run: ls -R
 
-      # Gradle 빌드 (테스트는 제외하고 빌드 속도를 높임)
+      # 2. application.properties 생성 (승계랜드님은 properties 형식이니 확장자 수정)
+      - name: Create application.properties
+        run: |
+          mkdir -p src/main/resources
+          echo "${{ secrets.APPLICATION_PROPERTIES }}" > src/main/resources/application.properties
+
+      # 3. Gradle 빌드 (파일 권한 강제 부여 추가)
       - name: Build with Gradle
         run: |
-          chmod +x ./gradlew
+          find . -name gradlew -exec chmod +x {} +
           ./gradlew build -x test
 
-      # 도커 허브 로그인 및 이미지 빌드/푸시
+      # 4. 도커 허브 로그인 및 이미지 빌드/푸시
       - name: Docker build & push
         run: |
           echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/seungyeland .
-          docker push ${{ secrets.DOCKER_USERNAME }}/seungyeland
+          # 이미지 태그를 소문자로 관리하는 것이 관례입니다.
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/seungyeland:latest .
+          docker push ${{ secrets.DOCKER_USERNAME }}/seungyeland:latest
 
-      # EC2에 SSH로 접속해서 컨테이너 교체
+      # 5. EC2에 SSH로 접속해서 컨테이너 교체
       - name: Deploy to EC2
         uses: appleboy/ssh-action@master
         with:
@@ -45,13 +49,12 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_KEY }}
           script: |
-            # 기존 컨테이너 중지 및 삭제 (이미 실행 중일 때만)
-            docker pull ${{ secrets.DOCKER_USERNAME }}/seungyeland
-            docker stop seungyeland-api || true
-            docker rm seungyeland-api || true
+            sudo docker pull ${{ secrets.DOCKER_USERNAME }}/seungyeland:latest
+            sudo docker stop seungyeland-api || true
+            sudo docker rm seungyeland-api || true
             
-            # 새 컨테이너 실행 (8080 포트 연결)
-            docker run -d --name seungyeland-api -p 8080:8080 ${{ secrets.DOCKER_USERNAME }}/seungyeland
+            # 포트 8080 연결 및 컨테이너 실행
+            sudo docker run -d --name seungyeland-api -p 8080:8080 ${{ secrets.DOCKER_USERNAME }}/seungyeland:latest
             
-            # 사용하지 않는 이미지 정리 (용량 확보)
-            docker image prune -f
+            # 안 쓰는 이미지 정리
+            sudo docker image prune -f
