@@ -1,6 +1,7 @@
 package com.example.dongyucar.management.controller;
 
 import com.example.dongyucar.management.controller.dto.ContactRequest;
+import com.example.dongyucar.management.controller.dto.ManagementPageResponse;
 import com.example.dongyucar.management.util.ContactEmailUtil;
 import com.example.dongyucar.management.controller.dto.AdminUpdateRequest;
 import com.example.dongyucar.management.controller.dto.ClientCreateRequest;
@@ -10,8 +11,11 @@ import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -33,8 +37,13 @@ public class ManagementController {
     }
 
     @GetMapping
-    public Page<ManagementResponse> list(Pageable pageable) {
-        return service.list(pageable);
+    public ResponseEntity<ManagementPageResponse> list(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
+        Page<ManagementResponse> result = service.list(pageable);
+        return ResponseEntity.ok(ManagementPageResponse.of(result));
     }
 
     @PatchMapping("/{id}/admin")

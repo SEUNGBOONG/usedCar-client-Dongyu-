@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  seungyeland-app:
+    image: leeseungyeop/seungyeland-app:latest
+    container_name: seungyeland-backend
+    ports:
+      - "8080:8080"
+    # 이제 environment 설정이 거의 필요 없거나 최소화됩니다.
+    restart: always
