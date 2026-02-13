@@ -89,14 +89,22 @@ public class ReviewService {
     }
 
     private ReviewResponseDto convertToDetailResponse(Review review) {
+        // ⭐️ 디버깅을 위해 로그를 찍어봅니다. (서버 콘솔에서 확인 가능)
+        System.out.println("조회된 리뷰 ID: " + review.getId());
+        System.out.println("본문 객체 존재 여부: " + (review.getReviewContent() != null));
+
         List<String> imageUrls = (review.getImages() == null) ? List.of() :
                 review.getImages().stream()
                         .map(ReviewImage::getImageUrl)
                         .collect(Collectors.toList());
 
+        System.out.println("이미지 개수: " + imageUrls.size());
+
         return ReviewResponseDto.builder()
                 .id(review.getId())
                 .title(review.getTitle())
+                // 여기서 review.getReviewContent().getContent()를 직접 호출할 때
+                // DB에서 값이 안 넘어오면 null이 됩니다.
                 .content(review.getReviewContent() != null ? review.getReviewContent().getContent() : null)
                 .imageUrls(imageUrls)
                 .build();
