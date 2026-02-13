@@ -5,6 +5,7 @@ import com.example.dongyucar.review.domain.repository.ReviewRepository;
 import com.example.dongyucar.review.dto.ReviewRequestDto;
 import com.example.dongyucar.review.dto.ReviewResponseDto;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,6 +13,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.stream.Collectors;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -24,7 +27,8 @@ public class ReviewService {
         Review review = Review.builder().title(dto.getTitle()).build();
 
         if (dto.getContent() != null && !dto.getContent().isEmpty()) {
-            review.setReviewContent(ReviewContent.builder().content(dto.getContent()).build());
+            ReviewContent content = ReviewContent.builder().content(dto.getContent()).build();
+            review.setReviewContent(content);
         }
 
         if (dto.getImages() != null) {
@@ -36,16 +40,17 @@ public class ReviewService {
             }
         }
 
-        Review savedReview = reviewRepository.save(review);
-        reviewRepository.flush();
+        Review saved = reviewRepository.save(review);
+        reviewRepository.flush(); // DB 반영 강제
 
-        return getReview(savedReview.getId());
+        return getReview(saved.getId());
     }
 
     @Transactional(readOnly = true)
     public ReviewResponseDto getReview(Long id) {
         Review review = reviewRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new RuntimeException("리뷰를 찾을 수 없습니다."));
+                .orElseThrow(() -> new RuntimeException("리뷰 없음: " + id));
+
         return convertToDetailResponse(review);
     }
 
@@ -55,25 +60,22 @@ public class ReviewService {
         return reviewRepository.findAll(pageable).map(this::convertToListResponse);
     }
 
-    public void deleteReview(Long id) {
-        Review review = reviewRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("리뷰 없음"));
-        if (review.getImages() != null) {
-            review.getImages().forEach(img -> s3Service.deleteFile(img.getImageUrl()));
-        }
-        reviewRepository.delete(review);
-    }
-
     private ReviewResponseDto convertToDetailResponse(Review review) {
-        // 엔티티에서 직접 String과 List<String>을 추출하여 DTO에 담습니다. (순환 참조 원천 차단)
-        String contentText = (review.getReviewContent() != null) ? review.getReviewContent().getContent() : "";
-        List<String> imageUrls = review.getImages().stream().map(ReviewImage::getImageUrl).collect(Collectors.toList());
+        String contentText = (review.getReviewContent() != null) ? review.getReviewContent().getContent() : "내용 없음";
+        List<String> urls = review.getImages().stream()
+                .map(ReviewImage::getImageUrl)
+                .collect(Collectors.toList());
+
+        // 서버 로그에서 확인용 (docker logs에 찍힙니다)
+        System.out.println("== [상세조회 변환 시작] ID: " + review.getId() + " ==");
+        System.out.println("추출된 내용: " + contentText);
+        System.out.println("추출된 이미지 개수: " + urls.size());
 
         return ReviewResponseDto.builder()
                 .id(review.getId())
                 .title(review.getTitle())
                 .content(contentText)
-                .imageUrls(imageUrls)
+                .imageUrls(urls)
                 .build();
     }
 
@@ -86,5 +88,13 @@ public class ReviewService {
                 .title(review.getTitle())
                 .thumbnail(thumbnail)
                 .build();
+    }
+
+    public void deleteReview(Long id) {
+        Review review = reviewRepository.findById(id).orElseThrow();
+        if (review.getImages() != null) {
+            review.getImages().forEach(img -> s3Service.deleteFile(img.getImageUrl()));
+        }
+        reviewRepository.delete(review);
     }
 }
