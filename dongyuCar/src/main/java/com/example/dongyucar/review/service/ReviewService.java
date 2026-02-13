@@ -12,7 +12,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.stream.Collectors;
-
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -22,50 +21,29 @@ public class ReviewService {
     private final S3Service s3Service;
 
     public ReviewResponseDto createReview(ReviewRequestDto dto) throws Exception {
-        // 1. 리뷰 객체 생성
-        Review review = Review.builder()
-                .title(dto.getTitle())
-                .build();
+        Review review = Review.builder().title(dto.getTitle()).build();
 
-        // 2. 본문 연결 (양방향 연결)
         if (dto.getContent() != null && !dto.getContent().isEmpty()) {
-            ReviewContent reviewContent = ReviewContent.builder()
-                    .content(dto.getContent())
-                    .build();
-            review.setReviewContent(reviewContent);
+            review.setReviewContent(ReviewContent.builder().content(dto.getContent()).build());
         }
 
-        // 3. 이미지 업로드 및 연결
-        if (dto.getImages() != null && !dto.getImages().isEmpty()) {
+        if (dto.getImages() != null) {
             for (MultipartFile file : dto.getImages()) {
-                if (file != null && !file.isEmpty()) {
-                    String url = s3Service.uploadFile(
-                            file.getInputStream(),
-                            file.getOriginalFilename(),
-                            file.getSize(),
-                            file.getContentType()
-                    );
-                    ReviewImage image = ReviewImage.builder().imageUrl(url).build();
-                    review.addImage(image);
+                if (!file.isEmpty()) {
+                    String url = s3Service.uploadFile(file.getInputStream(), file.getOriginalFilename(), file.getSize(), file.getContentType());
+                    review.addImage(ReviewImage.builder().imageUrl(url).build());
                 }
             }
         }
 
-        // 4. 저장 및 동기화
         Review savedReview = reviewRepository.save(review);
         reviewRepository.flush();
 
-        // 5. ⭐️ 핵심: 방금 만든 쿼리 메서드(findByIdWithDetails)로 다시 조회!
-        // 이렇게 해야 null 없이 본문과 이미지가 꽉 찬 상태로 가져와집니다.
-        Review finalReview = reviewRepository.findByIdWithDetails(savedReview.getId())
-                .orElseThrow(() -> new RuntimeException("저장된 리뷰를 찾을 수 없습니다."));
-
-        return convertToDetailResponse(finalReview);
+        return getReview(savedReview.getId());
     }
 
     @Transactional(readOnly = true)
     public ReviewResponseDto getReview(Long id) {
-        // ⭐️ 여기서도 findByIdWithDetails를 사용합니다.
         Review review = reviewRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new RuntimeException("리뷰를 찾을 수 없습니다."));
         return convertToDetailResponse(review);
@@ -80,30 +58,17 @@ public class ReviewService {
     public void deleteReview(Long id) {
         Review review = reviewRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("리뷰 없음"));
-
         if (review.getImages() != null) {
             review.getImages().forEach(img -> s3Service.deleteFile(img.getImageUrl()));
         }
-
         reviewRepository.delete(review);
     }
 
     private ReviewResponseDto convertToDetailResponse(Review review) {
-        // 1. 이미지 URL 리스트 변환
-        List<String> imageUrls = (review.getImages() == null) ? List.of() :
-                review.getImages().stream()
-                        .map(ReviewImage::getImageUrl)
-                        .collect(Collectors.toList());
+        // 엔티티에서 직접 String과 List<String>을 추출하여 DTO에 담습니다. (순환 참조 원천 차단)
+        String contentText = (review.getReviewContent() != null) ? review.getReviewContent().getContent() : "";
+        List<String> imageUrls = review.getImages().stream().map(ReviewImage::getImageUrl).collect(Collectors.toList());
 
-        // 2. 본문 내용 추출 (null 체크 필수)
-        String contentText = (review.getReviewContent() != null) ?
-                review.getReviewContent().getContent() : null;
-
-        // 3. 로그로 다시 확인 (서버 터미널 확인용)
-        System.out.println("DTO 담기 직전 내용: " + contentText);
-        System.out.println("DTO 담기 직전 이미지 개수: " + imageUrls.size());
-
-        // 4. DTO 생성 및 반환
         return ReviewResponseDto.builder()
                 .id(review.getId())
                 .title(review.getTitle())
@@ -114,8 +79,7 @@ public class ReviewService {
 
     private ReviewResponseDto convertToListResponse(Review review) {
         String thumbnail = (review.getImages() != null && !review.getImages().isEmpty())
-                ? review.getImages().get(0).getImageUrl()
-                : null;
+                ? review.getImages().get(0).getImageUrl() : null;
 
         return ReviewResponseDto.builder()
                 .id(review.getId())

@@ -11,18 +11,13 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf.disable()) // ⭐️ DELETE 요청 시 403 방지
                 .cors(cors -> cors.disable())
-                // ⭐️ 추가: HTTPS 관련 보안 헤더 설정
-                .headers(headers -> headers
-                        .frameOptions(frame -> frame.disable()) // H2 콘솔 등을 위해
-                )
+                .headers(headers -> headers.frameOptions(f -> f.disable()))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/admin/**").permitAll()
-                        .requestMatchers("/reviews/**").permitAll()
+                        .requestMatchers("/admin/**", "/reviews/**").permitAll() // ⭐️ 관리자/일반 경로 모두 허용
                         .anyRequest().permitAll()
                 );
-
         return http.build();
     }
 }
