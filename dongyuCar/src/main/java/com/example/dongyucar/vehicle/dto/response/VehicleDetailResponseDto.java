@@ -2,7 +2,6 @@ package com.example.dongyucar.vehicle.dto.response;
 
 import lombok.Builder;
 import lombok.Data;
-
 import java.util.List;
 
 @Data
@@ -17,6 +16,9 @@ public class VehicleDetailResponseDto {
     private Integer price;
     private Integer monthFee;
     private Integer supportFee;
+
+    // 🔥 [추가됨] 상세 조회 시 설명 반환
+    private String description;
 
     private String color;
     private String fuelType;

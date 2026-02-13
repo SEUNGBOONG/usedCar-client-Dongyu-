@@ -4,12 +4,8 @@ import com.example.dongyucar.review.dto.ReviewRequestDto;
 import com.example.dongyucar.review.dto.ReviewResponseDto;
 import com.example.dongyucar.review.service.ReviewService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.MediaType; // 추가
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/admin/reviews")
@@ -18,7 +14,8 @@ public class AdminReviewController {
 
     private final ReviewService reviewService;
 
-    @PostMapping
+    // consumes 추가: Swagger에서 파일 업로드 버튼 활성화
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ReviewResponseDto createReview(@ModelAttribute ReviewRequestDto dto) throws Exception {
         return reviewService.createReview(dto);
     }

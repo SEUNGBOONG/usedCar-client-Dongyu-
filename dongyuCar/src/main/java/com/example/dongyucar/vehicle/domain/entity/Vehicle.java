@@ -1,17 +1,7 @@
 package com.example.dongyucar.vehicle.domain.entity;
 
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.OneToOne;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import jakarta.persistence.*;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +23,10 @@ public class Vehicle {
     private Integer price;      // 차량가격
     private Integer monthFee;   // 월 렌트료
     private Integer supportFee; // 승계지원금
+
+    // 🔥 [추가됨] 차량 설명 (본문)
+    @Column(length = 2000) // 길이를 넉넉하게 잡거나, columnDefinition="TEXT" 사용 권장
+    private String description;
 
     @OneToMany(mappedBy = "vehicle", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<VehicleImage> images = new ArrayList<>();
