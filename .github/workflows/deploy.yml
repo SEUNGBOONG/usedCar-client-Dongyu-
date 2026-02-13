@@ -17,29 +17,27 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # 1. application.properties 생성 (dongyuCar 폴더 내부 경로에 생성)
+      # 1. application.properties 생성
       - name: Create application.properties
         run: |
           mkdir -p dongyuCar/src/main/resources
           echo "${{ secrets.APPLICATION_PROPERTIES }}" > dongyuCar/src/main/resources/application.properties
 
-      # 2. Gradle 빌드 (작업 디렉토리를 dongyuCar로 지정)
+      # 2. Gradle 빌드
       - name: Build with Gradle
         working-directory: ./dongyuCar
         run: |
           chmod +x ./gradlew
           ./gradlew build -x test
 
-
       # 3. 도커 허브 로그인 및 이미지 빌드/푸시
       - name: Docker build & push
         run: |
           echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-          # Dockerfile 위치를 dongyuCar 폴더로 지정
           docker build -t ${{ secrets.DOCKER_USERNAME }}/seungyeland:latest ./dongyuCar
           docker push ${{ secrets.DOCKER_USERNAME }}/seungyeland:latest
 
-      # 4. EC2에 SSH로 접속해서 컨테이너 교체
+      # 4. EC2에 SSH로 접속해서 컨테이너 교체 (가장 정확한 순서)
       - name: Deploy to EC2
         uses: appleboy/ssh-action@master
         with:
@@ -47,12 +45,19 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_KEY }}
           script: |
+            # 1. 최신 이미지 먼저 다운로드
             sudo docker pull ${{ secrets.DOCKER_USERNAME }}/seungyeland:latest
+            
+            # 2. 기존 컨테이너 중지 및 삭제
             sudo docker stop seungyeland-api || true
             sudo docker rm seungyeland-api || true
             
-            # 포트 8080 연결 및 컨테이너 실행
-            sudo docker run -d --name seungyeland-api -p 8080:8080 ${{ secrets.DOCKER_USERNAME }}/seungyeland:latest
+            # 3. 새 컨테이너 실행 (항상 재시작 옵션 추가)
+            sudo docker run -d \
+              --name seungyeland-api \
+              -p 8080:8080 \
+              --restart always \
+              ${{ secrets.DOCKER_USERNAME }}/seungyeland:latest
             
-            # 사용하지 않는 이미지 정리
+            # 4. 사용하지 않는 구형 이미지들 삭제
             sudo docker image prune -f
