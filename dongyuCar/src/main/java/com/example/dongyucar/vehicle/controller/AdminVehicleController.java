@@ -4,13 +4,8 @@ import com.example.dongyucar.vehicle.dto.request.VehicleRequestDto;
 import com.example.dongyucar.vehicle.dto.response.VehicleDetailResponseDto;
 import com.example.dongyucar.vehicle.service.VehicleService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/admin/vehicles")
@@ -19,17 +14,20 @@ public class AdminVehicleController {
 
     private final VehicleService vehicleService;
 
-    @PostMapping
+    // 차량 등록 - 멀티파트 데이터 명시
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Long create(@ModelAttribute VehicleRequestDto dto) throws Exception {
         return vehicleService.createVehicle(dto);
     }
 
+    // 차량 삭제
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
         vehicleService.deleteVehicle(id);
     }
 
-    @PutMapping("/{id}")
+    // 차량 수정 - 멀티파트 데이터 명시
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public VehicleDetailResponseDto update(
             @PathVariable Long id,
             @ModelAttribute VehicleRequestDto dto
@@ -37,6 +35,7 @@ public class AdminVehicleController {
         return vehicleService.updateVehicle(id, dto);
     }
 
+    // 이미지 개별 삭제
     @DeleteMapping("/{vehicleId}/images/{imageId}")
     public void deleteImage(
             @PathVariable Long vehicleId,

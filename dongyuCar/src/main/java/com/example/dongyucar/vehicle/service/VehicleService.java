@@ -17,13 +17,15 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 @RequiredArgsConstructor
+@Transactional // 서비스 전체에 트랜잭션 적용
 public class VehicleService {
 
     private final VehicleRepository vehicleRepository;
@@ -32,9 +34,9 @@ public class VehicleService {
     private final VehicleOptionRepository optionRepository;
     private final S3Service s3Service;
 
-    // 차량 등록
+    // 1. 차량 등록
     public Long createVehicle(VehicleRequestDto dto) throws Exception {
-
+        // 기본 정보 저장
         Vehicle vehicle = Vehicle.builder()
                 .title(dto.getTitle())
                 .model(dto.getModel())
@@ -44,9 +46,9 @@ public class VehicleService {
                 .monthFee(dto.getMonthFee())
                 .supportFee(dto.getSupportFee())
                 .build();
-
         vehicleRepository.save(vehicle);
 
+        // 상세 정보 저장
         VehicleDetail detail = VehicleDetail.builder()
                 .color(dto.getColor())
                 .fuelType(dto.getFuelType())
@@ -54,12 +56,7 @@ public class VehicleService {
                 .accidentHistory(dto.getAccidentHistory())
                 .vehicle(vehicle)
                 .build();
-
         detailRepository.save(detail);
-
-
-        // 🚀🚀 이미지 업로드는 절대 기다리지 않고 비동기로 처리
-        validateVehicle(dto, vehicle);
 
         // 옵션 저장
         if (dto.getOptions() != null) {
@@ -74,16 +71,61 @@ public class VehicleService {
             );
         }
 
-        // 🚀 **이미지 기다리지 않고 바로 응답**
+        // 이미지 업로드 (동기 방식으로 안전하게 처리)
+        uploadVehicleImages(dto.getImages(), vehicle);
+
         return vehicle.getId();
     }
 
-    private void validateVehicle(final VehicleRequestDto dto, final Vehicle vehicle) {
-        if (dto.getImages() != null && !dto.getImages().isEmpty()) {
+    // 2. 차량 수정
+    public VehicleDetailResponseDto updateVehicle(Long id, VehicleRequestDto dto) throws Exception {
+        Vehicle vehicle = vehicleRepository.findById(id).orElseThrow();
 
-            CompletableFuture.runAsync(() -> {
+        // 기본 정보 업데이트
+        vehicle.setTitle(dto.getTitle());
+        vehicle.setModel(dto.getModel());
+        vehicle.setYear(dto.getYear());
+        vehicle.setMileage(dto.getMileage());
+        vehicle.setPrice(dto.getPrice());
+        vehicle.setMonthFee(dto.getMonthFee());
+        vehicle.setSupportFee(dto.getSupportFee());
 
-                dto.getImages().forEach(file -> {
+        // 상세 정보 업데이트
+        VehicleDetail detail = detailRepository.findByVehicleId(id).orElseThrow();
+        detail.setColor(dto.getColor());
+        detail.setFuelType(dto.getFuelType());
+        detail.setGearType(dto.getGearType());
+        detail.setAccidentHistory(dto.getAccidentHistory());
+
+        // 이미지 추가
+        uploadVehicleImages(dto.getImages(), vehicle);
+
+        // 옵션 전체 교체 (단순화를 위해 기존 삭제 후 재등록)
+        List<VehicleOption> oldOpts = optionRepository.findByVehicleId(id);
+        optionRepository.deleteAll(oldOpts);
+
+        if (dto.getOptions() != null) {
+            dto.getOptions().forEach(name ->
+                    optionRepository.save(
+                            VehicleOption.builder()
+                                    .vehicle(vehicle)
+                                    .name(name)
+                                    .checked(true)
+                                    .build()
+                    )
+            );
+        }
+
+        return getVehicle(id);
+    }
+
+    // [공통] 이미지 업로드 로직 (비동기 제거)
+    private void uploadVehicleImages(List<MultipartFile> files, Vehicle vehicle) {
+        if (files == null || files.isEmpty()) return;
+
+        files.stream()
+                .filter(file -> file != null && !file.isEmpty())
+                .forEach(file -> {
                     try {
                         String url = s3Service.uploadFile(
                                 file.getInputStream(),
@@ -98,31 +140,20 @@ public class VehicleService {
                                         .imageUrl(url)
                                         .build()
                         );
-
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
+                    } catch (IOException e) {
+                        throw new RuntimeException("이미지 업로드 실패: " + file.getOriginalFilename(), e);
                     }
                 });
-
-            });
-        }
     }
 
-    // 목록 조회
+    // 3. 목록 조회
     public Page<VehicleResponseDto> getVehiclePage(int page) {
-
         Pageable pageable = PageRequest.of(page, 6);
-
         Page<Vehicle> vehicles = vehicleRepository.findPageWithDetail(pageable);
 
         return vehicles.map(v -> {
-
-            // 썸네일 찾기
             String thumbnail = imageRepository.findByVehicleId(v.getId())
-                    .stream()
-                    .findFirst()
-                    .map(VehicleImage::getImageUrl)
-                    .orElse(null);
+                    .stream().findFirst().map(VehicleImage::getImageUrl).orElse(null);
 
             VehicleDetail detail = detailRepository.findByVehicleId(v.getId()).orElse(null);
 
@@ -130,22 +161,18 @@ public class VehicleService {
                     .id(v.getId())
                     .title(v.getTitle())
                     .thumbnail(thumbnail)
-
-                    // 🔥 리스트에서 같이 내려줄 값들
                     .year(v.getYear())
                     .price(v.getPrice())
                     .mileage(v.getMileage())
                     .fuelType(detail != null ? detail.getFuelType() : null)
                     .gearType(detail != null ? detail.getGearType() : null)
                     .color(detail != null ? detail.getColor() : null)
-
                     .build();
         });
     }
 
-    // 상세 조회
+    // 4. 상세 조회
     public VehicleDetailResponseDto getVehicle(Long id) {
-
         Vehicle vehicle = vehicleRepository.findDetail(id).orElseThrow();
         VehicleDetail detail = detailRepository.findByVehicleId(id).orElseThrow();
         List<VehicleImage> images = imageRepository.findByVehicleId(id);
@@ -169,10 +196,8 @@ public class VehicleService {
                 .build();
     }
 
-    // 차량 삭제
+    // 5. 차량 삭제
     public void deleteVehicle(Long id) {
-
-        // 이미지 S3 삭제 포함
         List<VehicleImage> images = imageRepository.findByVehicleId(id);
         for (VehicleImage img : images) {
             s3Service.deleteFile(img.getImageUrl());
@@ -184,74 +209,8 @@ public class VehicleService {
         vehicleRepository.deleteById(id);
     }
 
-    // 차량 수정 (이미지는 추가만)
-    public VehicleDetailResponseDto updateVehicle(Long id, VehicleRequestDto dto) throws Exception {
-
-        Vehicle vehicle = vehicleRepository.findById(id).orElseThrow();
-
-        vehicle.setTitle(dto.getTitle());
-        vehicle.setModel(dto.getModel());
-        vehicle.setYear(dto.getYear());
-        vehicle.setMileage(dto.getMileage());
-        vehicle.setPrice(dto.getPrice());
-        vehicle.setMonthFee(dto.getMonthFee());
-        vehicle.setSupportFee(dto.getSupportFee());
-        vehicleRepository.save(vehicle);
-
-        VehicleDetail detail = detailRepository.findByVehicleId(id).orElseThrow();
-        detail.setColor(dto.getColor());
-        detail.setFuelType(dto.getFuelType());
-        detail.setGearType(dto.getGearType());
-        detail.setAccidentHistory(dto.getAccidentHistory());
-        detailRepository.save(detail);
-
-        // 새 이미지 추가 (빈 파일 필터링 추가)
-        if (dto.getImages() != null) {
-
-            List<MultipartFile> validImages = dto.getImages().stream()
-                    .filter(f -> f != null && !f.isEmpty())
-                    .toList();
-
-            for (MultipartFile file : validImages) {
-
-                String url = s3Service.uploadFile(
-                        file.getInputStream(),
-                        file.getOriginalFilename(),
-                        file.getSize(),
-                        file.getContentType()
-                );
-
-                imageRepository.save(
-                        VehicleImage.builder()
-                                .vehicle(vehicle)
-                                .imageUrl(url)
-                                .build()
-                );
-            }
-        }
-
-        // 옵션 전체 교체
-        List<VehicleOption> oldOpts = optionRepository.findByVehicleId(id);
-        optionRepository.deleteAll(oldOpts);
-
-        if (dto.getOptions() != null) {
-            dto.getOptions().forEach(name ->
-                    optionRepository.save(
-                            VehicleOption.builder()
-                                    .vehicle(vehicle)
-                                    .name(name)
-                                    .checked(true)
-                                    .build()
-                    )
-            );
-        }
-
-        return getVehicle(id);
-    }
-
-    // 이미지 개별 삭제
+    // 6. 이미지 개별 삭제
     public void deleteImage(Long vehicleId, Long imageId) {
-
         VehicleImage image = imageRepository.findById(imageId)
                 .orElseThrow(() -> new RuntimeException("이미지를 찾을 수 없습니다."));
 
@@ -263,20 +222,14 @@ public class VehicleService {
         imageRepository.delete(image);
     }
 
-    // 검색
+    // 7. 검색
     public Page<VehicleResponseDto> searchVehicles(String keyword, int page) {
-
         Pageable pageable = PageRequest.of(page, 6);
-
         Page<Vehicle> vehicles = vehicleRepository.searchByModel(keyword, pageable);
 
         return vehicles.map(v -> {
             String thumbnail = imageRepository.findByVehicleId(v.getId())
-                    .stream()
-                    .findFirst()
-                    .map(VehicleImage::getImageUrl)
-                    .orElse(null);
-
+                    .stream().findFirst().map(VehicleImage::getImageUrl).orElse(null);
             return VehicleResponseDto.builder()
                     .id(v.getId())
                     .title(v.getTitle())
