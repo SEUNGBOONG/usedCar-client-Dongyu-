@@ -41,7 +41,9 @@ public class SecurityConfig {
                 "http://localhost:3000",
                 "https://localhost:3000",
                 "https://승계랜드.com",
-                "https://ldg.승계랜드.com"
+                "https://ldg.승계랜드.com",
+                "https://xn--989an7ml9bdtr.com",     // 승계랜드.com의 Punycode
+                "https://ldg.xn--989an7ml9bdtr.com"  // ldg.승계랜드.com의 Punycode
         ));
 
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
