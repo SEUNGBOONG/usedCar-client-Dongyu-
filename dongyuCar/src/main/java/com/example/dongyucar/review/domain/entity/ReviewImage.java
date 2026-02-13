@@ -3,8 +3,7 @@ package com.example.dongyucar.review.domain.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-@Getter
-@Setter
+@Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -18,5 +17,6 @@ public class ReviewImage {
     private String imageUrl;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "review_id") // DB 외래키 컬럼명 명시
     private Review review;
 }

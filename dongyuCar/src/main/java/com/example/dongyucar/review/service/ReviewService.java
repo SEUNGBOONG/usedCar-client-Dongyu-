@@ -28,26 +28,27 @@ public class ReviewService {
                 .title(dto.getTitle())
                 .build();
 
-        // 2. 리뷰 본문 연결 (dto.getContent() 값을 ReviewContent에 주입)
+        // 2. 본문 연결
         if (dto.getContent() != null) {
             ReviewContent reviewContent = ReviewContent.builder()
                     .content(dto.getContent())
                     .build();
-            review.setReviewContent(reviewContent); // 엔티티 내 편의메서드 호출
+            review.setReviewContent(reviewContent);
         }
 
-        // 3. 리뷰 저장 (CascadeType.ALL 설정으로 Content도 자동 저장됨)
+        // 3. 리뷰 먼저 저장하여 ID 확보
         Review savedReview = reviewRepository.save(review);
 
-        // 4. 이미지 업로드
-        uploadReviewImages(dto.getImages(), savedReview);
+        // 4. 이미지 업로드 및 연관관계 매핑 (중요)
+        if (dto.getImages() != null && !dto.getImages().isEmpty()) {
+            uploadReviewImages(dto.getImages(), savedReview);
+        }
 
+        // 5. 최종 변환 및 반환
         return convertToDetailResponse(savedReview);
     }
 
     private void uploadReviewImages(List<MultipartFile> files, Review review) {
-        if (files == null || files.isEmpty()) return;
-
         files.stream()
                 .filter(file -> file != null && !file.isEmpty())
                 .forEach(file -> {
@@ -58,11 +59,19 @@ public class ReviewService {
                                 file.getSize(),
                                 file.getContentType()
                         );
-                        review.addImage(ReviewImage.builder().imageUrl(url).build());
+
+                        // 연관관계 편의 메서드 호출로 Review 객체의 images 리스트에 즉시 반영
+                        ReviewImage image = ReviewImage.builder()
+                                .imageUrl(url)
+                                .build();
+                        review.addImage(image);
+
                     } catch (IOException e) {
-                        throw new RuntimeException("리뷰 이미지 업로드 실패", e);
+                        throw new RuntimeException("이미지 업로드 실패", e);
                     }
                 });
+
+        // 변경 감지(Dirty Checking) 또는 명시적 저장
         reviewRepository.save(review);
     }
 
@@ -87,16 +96,24 @@ public class ReviewService {
     }
 
     private ReviewResponseDto convertToDetailResponse(Review review) {
+        // 이미지 URL 리스트 추출
+        List<String> imageUrls = review.getImages().stream()
+                .map(ReviewImage::getImageUrl)
+                .collect(Collectors.toList());
+
         return ReviewResponseDto.builder()
                 .id(review.getId())
                 .title(review.getTitle())
                 .content(review.getReviewContent() != null ? review.getReviewContent().getContent() : null)
-                .imageUrls(review.getImages().stream().map(ReviewImage::getImageUrl).collect(Collectors.toList()))
+                .imageUrls(imageUrls)
                 .build();
     }
 
     private ReviewResponseDto convertToListResponse(Review review) {
-        String thumbnail = review.getImages().isEmpty() ? null : review.getImages().get(0).getImageUrl();
+        String thumbnail = (review.getImages() != null && !review.getImages().isEmpty())
+                ? review.getImages().get(0).getImageUrl()
+                : null;
+
         return ReviewResponseDto.builder()
                 .id(review.getId())
                 .title(review.getTitle())
