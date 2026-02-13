@@ -11,10 +11,18 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable()) // CSRF 끄기
+                .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.disable())
+                // ⭐️ 추가: HTTPS 관련 보안 헤더 설정
+                .headers(headers -> headers
+                        .frameOptions(frame -> frame.disable()) // H2 콘솔 등을 위해
+                )
                 .authorizeHttpRequests(auth -> auth
-                        .anyRequest().permitAll() // ⭐️ 핵심: 모든 요청(Swagger 포함) 로그인 없이 허용!
+                        .requestMatchers("/admin/**").permitAll()
+                        .requestMatchers("/reviews/**").permitAll()
+                        .anyRequest().permitAll()
                 );
+
         return http.build();
     }
 }
