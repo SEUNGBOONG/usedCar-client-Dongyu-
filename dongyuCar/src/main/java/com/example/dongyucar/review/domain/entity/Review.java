@@ -17,7 +17,7 @@ public class Review {
 
     private String title;
 
-    @OneToOne(mappedBy = "review", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToOne(mappedBy = "review", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private ReviewContent reviewContent;
 
     @OneToMany(mappedBy = "review", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -25,7 +25,6 @@ public class Review {
     private List<ReviewImage> images = new ArrayList<>();
 
     public void addImage(ReviewImage image) {
-        if (this.images == null) this.images = new ArrayList<>();
         this.images.add(image);
         image.setReview(this);
     }
