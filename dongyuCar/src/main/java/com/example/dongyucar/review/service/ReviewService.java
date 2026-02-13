@@ -23,56 +23,40 @@ public class ReviewService {
     private final S3Service s3Service;
 
     public ReviewResponseDto createReview(ReviewRequestDto dto) throws Exception {
-        // 1. 리뷰 기본 정보 생성
+        // 1. 리뷰 객체 먼저 생성
         Review review = Review.builder()
                 .title(dto.getTitle())
                 .build();
 
-        // 2. 본문 연결
-        if (dto.getContent() != null) {
+        // 2. 본문 연관관계 매핑 (수정된 편의 메서드 사용)
+        if (dto.getContent() != null && !dto.getContent().isEmpty()) {
             ReviewContent reviewContent = ReviewContent.builder()
                     .content(dto.getContent())
                     .build();
             review.setReviewContent(reviewContent);
         }
 
-        // 3. 리뷰 먼저 저장하여 ID 확보
-        Review savedReview = reviewRepository.save(review);
-
-        // 4. 이미지 업로드 및 연관관계 매핑 (중요)
+        // 3. 이미지 업로드 및 연관관계 매핑 (저장 전 리스트에 담기)
         if (dto.getImages() != null && !dto.getImages().isEmpty()) {
-            uploadReviewImages(dto.getImages(), savedReview);
+            for (MultipartFile file : dto.getImages()) {
+                if (file != null && !file.isEmpty()) {
+                    String url = s3Service.uploadFile(
+                            file.getInputStream(),
+                            file.getOriginalFilename(),
+                            file.getSize(),
+                            file.getContentType()
+                    );
+                    ReviewImage image = ReviewImage.builder().imageUrl(url).build();
+                    review.addImage(image); // review 객체에 이미지 연결
+                }
+            }
         }
 
-        // 5. 최종 변환 및 반환
+        // 4. 최종 저장 (CascadeType.ALL로 인해 Image, Content 자동 저장)
+        Review savedReview = reviewRepository.save(review);
+
+        // 5. 즉시 반영 후 상세 데이터로 변환하여 반환
         return convertToDetailResponse(savedReview);
-    }
-
-    private void uploadReviewImages(List<MultipartFile> files, Review review) {
-        files.stream()
-                .filter(file -> file != null && !file.isEmpty())
-                .forEach(file -> {
-                    try {
-                        String url = s3Service.uploadFile(
-                                file.getInputStream(),
-                                file.getOriginalFilename(),
-                                file.getSize(),
-                                file.getContentType()
-                        );
-
-                        // 연관관계 편의 메서드 호출로 Review 객체의 images 리스트에 즉시 반영
-                        ReviewImage image = ReviewImage.builder()
-                                .imageUrl(url)
-                                .build();
-                        review.addImage(image);
-
-                    } catch (IOException e) {
-                        throw new RuntimeException("이미지 업로드 실패", e);
-                    }
-                });
-
-        // 변경 감지(Dirty Checking) 또는 명시적 저장
-        reviewRepository.save(review);
     }
 
     @Transactional(readOnly = true)
@@ -91,15 +75,20 @@ public class ReviewService {
     public void deleteReview(Long id) {
         Review review = reviewRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("리뷰 없음"));
-        review.getImages().forEach(img -> s3Service.deleteFile(img.getImageUrl()));
+
+        // S3 실물 파일 삭제
+        if (review.getImages() != null) {
+            review.getImages().forEach(img -> s3Service.deleteFile(img.getImageUrl()));
+        }
+
         reviewRepository.delete(review);
     }
 
     private ReviewResponseDto convertToDetailResponse(Review review) {
-        // 이미지 URL 리스트 추출
-        List<String> imageUrls = review.getImages().stream()
-                .map(ReviewImage::getImageUrl)
-                .collect(Collectors.toList());
+        List<String> imageUrls = (review.getImages() == null) ? List.of() :
+                review.getImages().stream()
+                        .map(ReviewImage::getImageUrl)
+                        .collect(Collectors.toList());
 
         return ReviewResponseDto.builder()
                 .id(review.getId())
