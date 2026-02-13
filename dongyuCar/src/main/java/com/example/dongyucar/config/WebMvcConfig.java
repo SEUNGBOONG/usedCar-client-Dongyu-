@@ -27,6 +27,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
         config.addAllowedOrigin("https://localhost:3000"); // 개발용
         config.addAllowedOrigin("https://승계랜드.com"); // 배포용
         config.addAllowedOrigin("https://승계랜드.com"); // 배포용
+        config.addAllowedOrigin("https://ldg.승계랜드.com"); // 배포용
         config.setAllowCredentials(true); // 세션(Cookie) 공유 허용
         config.addAllowedMethod("*");
         config.addAllowedHeader("*");
