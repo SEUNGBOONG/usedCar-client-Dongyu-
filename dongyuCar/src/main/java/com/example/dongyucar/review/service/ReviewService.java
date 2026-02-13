@@ -23,12 +23,12 @@ public class ReviewService {
     private final S3Service s3Service;
 
     public ReviewResponseDto createReview(ReviewRequestDto dto) throws Exception {
-        // 1. 리뷰 객체 먼저 생성
+        // 1. 리뷰 객체 생성
         Review review = Review.builder()
                 .title(dto.getTitle())
                 .build();
 
-        // 2. 본문 연관관계 매핑 (수정된 편의 메서드 사용)
+        // 2. 본문 연결 (Review 엔티티에 있는 편의 메서드 setReviewContent 활용)
         if (dto.getContent() != null && !dto.getContent().isEmpty()) {
             ReviewContent reviewContent = ReviewContent.builder()
                     .content(dto.getContent())
@@ -36,7 +36,7 @@ public class ReviewService {
             review.setReviewContent(reviewContent);
         }
 
-        // 3. 이미지 업로드 및 연관관계 매핑 (저장 전 리스트에 담기)
+        // 3. 이미지 업로드 및 연결
         if (dto.getImages() != null && !dto.getImages().isEmpty()) {
             for (MultipartFile file : dto.getImages()) {
                 if (file != null && !file.isEmpty()) {
@@ -47,16 +47,20 @@ public class ReviewService {
                             file.getContentType()
                     );
                     ReviewImage image = ReviewImage.builder().imageUrl(url).build();
-                    review.addImage(image); // review 객체에 이미지 연결
+                    review.addImage(image); // review 객체에 이미지 연결 (addImage 내부에서 setReview(this) 호출됨)
                 }
             }
         }
 
-        // 4. 최종 저장 (CascadeType.ALL로 인해 Image, Content 자동 저장)
+        // 4. DB 저장 및 강제 동기화 (중요 포인트)
         Review savedReview = reviewRepository.save(review);
+        reviewRepository.flush(); // 메모리에 있는 Insert 쿼리들을 즉시 DB로 보냄
 
-        // 5. 즉시 반영 후 상세 데이터로 변환하여 반환
-        return convertToDetailResponse(savedReview);
+        // 5. DB에서 다시 조회 (메모리 캐시 대신 DB에 저장된 완전한 데이터를 가져옴)
+        Review finalReview = reviewRepository.findById(savedReview.getId())
+                .orElseThrow(() -> new RuntimeException("리뷰 저장 후 조회 실패"));
+
+        return convertToDetailResponse(finalReview);
     }
 
     @Transactional(readOnly = true)
