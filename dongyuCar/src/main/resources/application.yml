@@ -1,0 +1,12 @@
+# application.yml
+management:
+  site-name: "승계랜드?"
+
+spring:
+  jpa:
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
