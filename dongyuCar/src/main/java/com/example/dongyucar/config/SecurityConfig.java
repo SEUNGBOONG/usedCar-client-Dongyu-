@@ -37,13 +37,16 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         // 허용할 도메인들
-        config.setAllowedOrigins(Arrays.asList(
-                "http://localhost:3000",
-                "https://localhost:3000",
+        // 개발 환경(포트/호스트) 변동이 잦아서 패턴 기반 허용을 추가
+        config.setAllowedOriginPatterns(Arrays.asList(
+                "http://localhost:*",
+                "https://localhost:*",
+                "http://127.0.0.1:*",
+                "https://127.0.0.1:*",
                 "https://승계랜드.com",
-                "https://ldg.승계랜드.com",
-                "https://xn--989an7ml9bdtr.com",     // 승계랜드.com의 Punycode
-                "https://ldg.xn--989an7ml9bdtr.com"  // ldg.승계랜드.com의 Punycode
+                "https://*.승계랜드.com",
+                "https://xn--989an7ml9bdtr.com",      // 승계랜드.com의 Punycode
+                "https://*.xn--989an7ml9bdtr.com"     // 서브도메인 Punycode
         ));
 
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
