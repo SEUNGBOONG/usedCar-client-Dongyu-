@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -44,6 +45,7 @@ public class VehicleService {
                 .price(dto.getPrice())
                 .monthFee(dto.getMonthFee())
                 .supportFee(dto.getSupportFee())
+                .supportFeeType(normalizeSupportFeeType(dto.getSupportFeeType()))
                 .description(dto.getDescription()) // 🔥 [추가됨] 설명 저장
                 .build();
         vehicleRepository.save(vehicle);
@@ -52,7 +54,6 @@ public class VehicleService {
                 .color(dto.getColor())
                 .fuelType(dto.getFuelType())
                 .gearType(dto.getGearType())
-                .accidentHistory(dto.getAccidentHistory())
                 .vehicle(vehicle)
                 .build();
         detailRepository.save(detail);
@@ -80,6 +81,7 @@ public class VehicleService {
         vehicle.setPrice(dto.getPrice());
         vehicle.setMonthFee(dto.getMonthFee());
         vehicle.setSupportFee(dto.getSupportFee());
+        vehicle.setSupportFeeType(normalizeSupportFeeType(dto.getSupportFeeType()));
         vehicle.setDescription(dto.getDescription()); // 🔥 [추가됨] 설명 수정
 
         vehicleRepository.save(vehicle);
@@ -89,7 +91,6 @@ public class VehicleService {
         detail.setColor(dto.getColor());
         detail.setFuelType(dto.getFuelType());
         detail.setGearType(dto.getGearType());
-        detail.setAccidentHistory(dto.getAccidentHistory());
 
         // 이미지 추가
         uploadVehicleImages(dto.getImages(), vehicle);
@@ -109,7 +110,7 @@ public class VehicleService {
 
     // 3. 목록 조회 (목록에는 보통 설명이 안 나가므로 그대로 둠)
     public Page<VehicleResponseDto> getVehiclePage(int page) {
-        Pageable pageable = PageRequest.of(page, 6);
+        Pageable pageable = PageRequest.of(page, 6, Sort.by(Sort.Direction.DESC, "id"));
         Page<Vehicle> vehicles = vehicleRepository.findPageWithDetail(pageable);
 
         return vehicles.map(v -> {
@@ -124,6 +125,9 @@ public class VehicleService {
                     .year(v.getYear())
                     .price(v.getPrice())
                     .mileage(v.getMileage())
+                    .monthFee(v.getMonthFee())
+                    .supportFee(v.getSupportFee())
+                    .supportFeeType(v.getSupportFeeType())
                     .fuelType(detail != null ? detail.getFuelType() : null)
                     .gearType(detail != null ? detail.getGearType() : null)
                     .color(detail != null ? detail.getColor() : null)
@@ -147,11 +151,11 @@ public class VehicleService {
                 .price(vehicle.getPrice())
                 .monthFee(vehicle.getMonthFee())
                 .supportFee(vehicle.getSupportFee())
+                .supportFeeType(vehicle.getSupportFeeType())
                 .description(vehicle.getDescription()) // 🔥 [추가됨] 상세 조회 시 설명 반환
                 .color(detail.getColor())
                 .fuelType(detail.getFuelType())
                 .gearType(detail.getGearType())
-                .accidentHistory(detail.getAccidentHistory())
                 .images(images.stream().map(VehicleImage::getImageUrl).toList())
                 .options(options.stream().map(VehicleOption::getName).toList())
                 .build();
@@ -187,10 +191,35 @@ public class VehicleService {
     }
 
     public Page<VehicleResponseDto> searchVehicles(String keyword, int page) {
-        Pageable pageable = PageRequest.of(page, 6);
+        Pageable pageable = PageRequest.of(page, 6, Sort.by(Sort.Direction.DESC, "id"));
         return vehicleRepository.searchByModel(keyword, pageable).map(v -> {
             String thumbnail = imageRepository.findByVehicleId(v.getId()).stream().findFirst().map(VehicleImage::getImageUrl).orElse(null);
-            return VehicleResponseDto.builder().id(v.getId()).title(v.getTitle()).thumbnail(thumbnail).build();
+            VehicleDetail detail = detailRepository.findByVehicleId(v.getId()).orElse(null);
+            return VehicleResponseDto.builder()
+                    .id(v.getId())
+                    .title(v.getTitle())
+                    .thumbnail(thumbnail)
+                    .year(v.getYear())
+                    .price(v.getPrice())
+                    .mileage(v.getMileage())
+                    .monthFee(v.getMonthFee())
+                    .supportFee(v.getSupportFee())
+                    .supportFeeType(v.getSupportFeeType())
+                    .fuelType(detail != null ? detail.getFuelType() : null)
+                    .gearType(detail != null ? detail.getGearType() : null)
+                    .color(detail != null ? detail.getColor() : null)
+                    .build();
         });
+    }
+
+    private String normalizeSupportFeeType(String supportFeeType) {
+        if (supportFeeType == null || supportFeeType.isBlank()) {
+            return "SUPPORT";
+        }
+        String normalized = supportFeeType.trim().toUpperCase();
+        if (!normalized.equals("SUPPORT") && !normalized.equals("TAKEOVER")) {
+            throw new IllegalArgumentException("supportFeeType must be SUPPORT or TAKEOVER");
+        }
+        return normalized;
     }
 }

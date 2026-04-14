@@ -20,6 +20,6 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Long> {
     @Query("SELECT v FROM Vehicle v WHERE v.model LIKE %:keyword% ORDER BY v.id DESC")
     Page<Vehicle> searchByModel(@Param("keyword") String keyword, Pageable pageable);
 
-    @Query("SELECT v FROM Vehicle v JOIN FETCH v.detail")
+    @Query("SELECT v FROM Vehicle v JOIN FETCH v.detail d ORDER BY v.id DESC")
     Page<Vehicle> findPageWithDetail(Pageable pageable);
 }

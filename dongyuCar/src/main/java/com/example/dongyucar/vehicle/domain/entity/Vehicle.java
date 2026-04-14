@@ -23,6 +23,7 @@ public class Vehicle {
     private Integer price;      // 차량가격
     private Integer monthFee;   // 월 렌트료
     private Integer supportFee; // 승계지원금
+    private String supportFeeType; // SUPPORT | TAKEOVER
 
     // 🔥 [추가됨] 차량 설명 (본문)
     @Column(length = 2000) // 길이를 넉넉하게 잡거나, columnDefinition="TEXT" 사용 권장

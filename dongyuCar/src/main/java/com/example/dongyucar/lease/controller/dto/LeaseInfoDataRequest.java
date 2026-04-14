@@ -2,23 +2,14 @@ package com.example.dongyucar.lease.controller.dto;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
-@Schema(description = "lease-info 생성/업서트 요청")
-public class LeaseInfoUpsertRequest {
-
-    @NotNull
-    @Schema(description = "vehicle 테이블 PK", example = "123")
-    private Long vehicleId;
-
-    @NotBlank
-    @Schema(description = "상품 유형", allowableValues = {"RENT", "LEASE", "LENT"})
-    private String type; // "RENT" | "LEASE"
+@Schema(description = "vehicleId와 type이 경로/쿼리스트링으로 이미 정해진 경우 사용하는 요청")
+public class LeaseInfoDataRequest {
 
     @NotNull
     @Schema(description = "리스/렌트 상세 데이터 JSON", example = "{\"monthlyFee\":420000,\"deposit\":3000000}")

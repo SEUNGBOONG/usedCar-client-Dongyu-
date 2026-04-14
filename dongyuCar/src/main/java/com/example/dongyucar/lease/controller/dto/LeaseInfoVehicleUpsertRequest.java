@@ -9,16 +9,12 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
-@Schema(description = "lease-info 생성/업서트 요청")
-public class LeaseInfoUpsertRequest {
-
-    @NotNull
-    @Schema(description = "vehicle 테이블 PK", example = "123")
-    private Long vehicleId;
+@Schema(description = "vehicleId를 경로로 전달할 때 사용하는 생성/수정 요청")
+public class LeaseInfoVehicleUpsertRequest {
 
     @NotBlank
     @Schema(description = "상품 유형", allowableValues = {"RENT", "LEASE", "LENT"})
-    private String type; // "RENT" | "LEASE"
+    private String type;
 
     @NotNull
     @Schema(description = "리스/렌트 상세 데이터 JSON", example = "{\"monthlyFee\":420000,\"deposit\":3000000}")

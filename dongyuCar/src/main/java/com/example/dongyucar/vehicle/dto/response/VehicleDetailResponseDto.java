@@ -16,6 +16,7 @@ public class VehicleDetailResponseDto {
     private Integer price;
     private Integer monthFee;
     private Integer supportFee;
+    private String supportFeeType;
 
     // 🔥 [추가됨] 상세 조회 시 설명 반환
     private String description;
@@ -23,7 +24,6 @@ public class VehicleDetailResponseDto {
     private String color;
     private String fuelType;
     private String gearType;
-    private Integer accidentHistory;
 
     private List<String> images;
     private List<String> options;

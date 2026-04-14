@@ -14,6 +14,7 @@ public class VehicleRequestDto {
     private Integer price;
     private Integer monthFee;
     private Integer supportFee;
+    private String supportFeeType;
 
     // 🔥 [추가됨] 차량 설명 입력 필드
     private String description;
@@ -21,7 +22,6 @@ public class VehicleRequestDto {
     private String color;
     private String fuelType;
     private String gearType;
-    private Integer accidentHistory;
 
     private List<MultipartFile> images;
     private List<String> options;
@@ -31,9 +31,9 @@ public class VehicleRequestDto {
     private String content;          // = description
     private String fuel_type;        // = fuelType
     private String gear_type;        // = gearType
-    private Integer accident_history; // = accidentHistory
     private Integer month_fee;       // = monthFee
     private Integer support_fee;     // = supportFee
+    private String support_fee_type; // = supportFeeType
 
     public void setContent(String content) {
         this.content = content;
@@ -50,11 +50,6 @@ public class VehicleRequestDto {
         if (this.gearType == null) this.gearType = gearType;
     }
 
-    public void setAccident_history(Integer accidentHistory) {
-        this.accident_history = accidentHistory;
-        if (this.accidentHistory == null) this.accidentHistory = accidentHistory;
-    }
-
     public void setMonth_fee(Integer monthFee) {
         this.month_fee = monthFee;
         if (this.monthFee == null) this.monthFee = monthFee;
@@ -63,5 +58,10 @@ public class VehicleRequestDto {
     public void setSupport_fee(Integer supportFee) {
         this.support_fee = supportFee;
         if (this.supportFee == null) this.supportFee = supportFee;
+    }
+
+    public void setSupport_fee_type(String supportFeeType) {
+        this.support_fee_type = supportFeeType;
+        if (this.supportFeeType == null) this.supportFeeType = supportFeeType;
     }
 }

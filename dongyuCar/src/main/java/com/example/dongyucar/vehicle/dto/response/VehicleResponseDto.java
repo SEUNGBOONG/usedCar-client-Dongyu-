@@ -15,6 +15,9 @@ public class VehicleResponseDto {
     private String year;
     private Integer price;
     private Integer mileage;
+    private Integer monthFee;
+    private Integer supportFee;
+    private String supportFeeType;
     private String fuelType;
     private String gearType;
     private String color;
