@@ -13,6 +13,7 @@ import org.springframework.web.client.RestTemplate;
 @Component
 public class AligoSmsUtil {
 
+
     private final RestTemplate restTemplate;
 
     @Value("${aligo.api.key}")
