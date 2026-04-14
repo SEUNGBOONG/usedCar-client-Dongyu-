@@ -78,11 +78,31 @@ public class LeaseInfoService {
     }
 
     public LeaseInfoResponse update(Long id, LeaseInfoUpsertRequest req) {
+        String normalizedType = normalizeType(req.getType());
+
+        // Some clients send vehicleId in the path instead of lease_info PK.
+        // If both values match, update by vehicleId + type to avoid overwriting the other type row.
+        if (req.getVehicleId() != null && id.equals(req.getVehicleId())) {
+            LeaseInfo entity = repository.findByVehicleIdAndType(req.getVehicleId(), normalizedType)
+                    .orElseGet(() -> LeaseInfo.builder()
+                            .vehicleId(req.getVehicleId())
+                            .type(normalizedType)
+                            .payloadJson("{}")
+                            .build());
+
+            entity.setVehicleId(req.getVehicleId());
+            entity.setType(normalizedType);
+            entity.setPayloadJson(toJson(req.getData()));
+
+            LeaseInfo saved = repository.save(entity);
+            return toRes(saved);
+        }
+
         LeaseInfo entity = repository.findById(id)
                 .orElseThrow(() -> new NotFoundException("LeaseInfo not found: id=" + id));
 
         entity.setVehicleId(req.getVehicleId());
-        entity.setType(normalizeType(req.getType()));
+        entity.setType(normalizedType);
         entity.setPayloadJson(toJson(req.getData()));
 
         LeaseInfo saved = repository.save(entity);

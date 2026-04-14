@@ -60,7 +60,7 @@ public class LeaseInfoController {
         return service.getById(leaseInfoId);
     }
 
-    @Operation(summary = "lease_info PK 기준 수정", description = "path id는 lease_info PK입니다. body에는 vehicleId와 type을 함께 보냅니다.")
+    @Operation(summary = "lease_info 수정", description = "기본은 lease_info PK 수정입니다. 기존 프론트처럼 path id와 body vehicleId가 같으면 vehicleId + type 기준으로 안전하게 수정합니다.")
     @PutMapping("/{id}")
     public LeaseInfoResponse update(
             @Parameter(name = "id", description = "lease_info 테이블 PK", example = "10") @PathVariable("id") Long leaseInfoId,
