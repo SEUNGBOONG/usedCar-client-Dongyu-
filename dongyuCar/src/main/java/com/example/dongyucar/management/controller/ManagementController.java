@@ -32,7 +32,13 @@ public class ManagementController {
 
     @PostMapping("/contact")
     public ManagementResponse createByClientContact(@Valid @RequestBody ClientCreateRequest req) {
-        return service.createByClient(req);
+        ManagementResponse response = service.createByClient(req);
+        smsService.sendContactSms(new ContactRequest(
+                req.getCustomerName(),
+                req.getCustomerPhone(),
+                req.getDesiredModel()
+        ));
+        return response;
     }
 
     @GetMapping("/{id}")
