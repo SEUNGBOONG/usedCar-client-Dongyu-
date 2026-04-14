@@ -2,14 +2,12 @@ package com.example.dongyucar.management.controller;
 
 import com.example.dongyucar.management.controller.dto.ContactRequest;
 import com.example.dongyucar.management.controller.dto.ManagementPageResponse;
-import com.example.dongyucar.management.util.ContactEmailUtil;
 import com.example.dongyucar.management.util.ContactSmsUtil;
 import com.example.dongyucar.management.controller.dto.AdminUpdateRequest;
 import com.example.dongyucar.management.controller.dto.ClientCreateRequest;
 import com.example.dongyucar.management.controller.dto.ManagementResponse;
 import com.example.dongyucar.management.service.ManagementService;
 
-import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -27,7 +25,6 @@ import org.springframework.web.bind.annotation.*;
 public class ManagementController {
 
     private final ManagementService service;
-    private final ContactEmailUtil emailService;
     private final ContactSmsUtil smsService;
 
     @PostMapping("/contact")
@@ -70,11 +67,10 @@ public class ManagementController {
     @PostMapping("/mail")
     public ResponseEntity<String> submitContactForm(@RequestBody ContactRequest request) {
         try {
-            emailService.sendContactEmail(request);
             smsService.sendContactSms(request);
-            return ResponseEntity.ok("문의가 성공적으로 전송되었습니다.");
-        } catch (MessagingException | RuntimeException e) {
-            return ResponseEntity.status(500).body("문의 전송 중 오류가 발생했습니다.");
+            return ResponseEntity.ok("문자가 성공적으로 전송되었습니다.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(500).body("문자 전송 중 오류가 발생했습니다.");
         }
     }
 }
