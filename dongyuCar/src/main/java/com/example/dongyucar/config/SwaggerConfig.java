@@ -28,8 +28,7 @@ public class SwaggerConfig {
                                 )
                 )
                 .servers(List.of(
-                        new Server().url("http://localhost:8080"),
-                        new Server().url("https://api.승계랜드.com")
+                        new Server().url("/")
                 ))
                 .info(new Info()
                         .title("Demo API 명세서")
