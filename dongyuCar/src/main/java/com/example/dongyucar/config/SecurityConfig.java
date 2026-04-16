@@ -49,7 +49,7 @@ public class SecurityConfig {
                 "https://*.xn--989an7ml9bdtr.com"     // 서브도메인 Punycode
         ));
 
-        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("*"));
         config.setAllowCredentials(true); // 쿠키/인증 정보 허용
 
